@@ -1,12 +1,3 @@
-# Royal Window Scheduler
-
-A scheduling app for a window cleaning business. Runs fully offline once installed.
-
-## Put it on GitHub and host it
-1. Create a new GitHub repository and upload everything in this folder (keep the `icons` folder).
-2. In the repo go to Settings > Pages. Under "Build and deployment" choose "Deploy from a branch", pick `main` and `/ (root)`, then Save.
-3. After a minute GitHub shows your site address, like `https://YOURNAME.github.io/REPO/`.
-
 ## Install on an Android phone
 1. Open that address in Chrome while the phone has internet.
 2. Tap the three-dot menu, then "Install app" (or "Add to Home screen").
