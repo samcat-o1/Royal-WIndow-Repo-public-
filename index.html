@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Royal Window Scheduler</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#12303b">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+:root{--bg:#e6eef1;--surface:#fff;--ink:#12303b;--muted:#5d7580;--line:#c9d8de;--pend:#d99a00;--done:#23877b;--accent:#12303b;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1c22;--surface:#182a32;--ink:#e3eef2;--muted:#8fa7b1;--line:#2b4450;--pend:#f0b429;--done:#4fc3b4;--accent:#e3eef2;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1c22;--surface:#182a32;--ink:#e3eef2;--muted:#8fa7b1;--line:#2b4450;--pend:#f0b429;--done:#4fc3b4;--accent:#e3eef2;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.45 system-ui,"Segoe UI",Roboto,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:20px 16px 40px}
+h1{display:flex;align-items:center;flex-wrap:wrap;gap:12px;font-size:2rem;font-weight:800;margin:0 0 12px;letter-spacing:-.02em}
+nav{display:flex;gap:4px;overflow-x:auto;border-bottom:2px solid var(--line);margin-bottom:18px}
+nav button{background:none;border:0;border-bottom:4px solid transparent;margin-bottom:-2px;padding:10px 14px;font-weight:600;cursor:pointer;color:var(--muted);white-space:nowrap}
+nav button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--pend)}
+.tab{display:none}.tab.on{display:block}
+form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:20px}
+input,select,textarea,button{font:inherit;color:inherit}
+input,select,textarea{padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);min-width:0}
+:focus-visible{outline:2px solid var(--pend);outline-offset:1px}
+.btn{background:var(--accent);color:var(--bg);border:0;border-radius:6px;font-weight:600;padding:9px 14px;cursor:pointer}
+.ghost{background:none;border:1px solid var(--line);border-radius:5px;padding:3px 8px;font-size:.85rem;cursor:pointer;color:var(--ink);text-decoration:none;display:inline-block}
+.board{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:700px){.board{grid-template-columns:1fr}}
+.col{background:var(--surface);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;min-height:300px}
+.col header{padding:12px 14px;border-bottom:3px solid var(--c);display:flex;justify-content:space-between;align-items:baseline}
+.col[data-status=pending]{--c:var(--pend)}.col[data-status=done]{--c:var(--done)}
+h2{margin:0;font-size:1.15rem;font-weight:800}
+.stat,.meta{color:var(--muted);font-size:.9rem}
+.list{flex:1;padding:10px;display:flex;flex-direction:column;gap:8px}
+.list.over{background:color-mix(in srgb,var(--c) 14%,transparent)}
+.card{background:var(--bg);border:1px solid var(--line);border-left:5px solid var(--c,var(--line));border-radius:6px;padding:10px 12px}
+.list .card{cursor:grab}.card.dragging{opacity:.4}
+.card b{font-weight:600}
+.row{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap}
+.price{font-weight:800}
+.acts{display:flex;gap:4px;flex-wrap:wrap}
+.empty{color:var(--muted);text-align:center;padding:30px 10px;border:2px dashed var(--line);border-radius:6px}
+[data-status=done] .card b{text-decoration:line-through;text-decoration-color:var(--done)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.cards .card{background:var(--surface)}
+.wk{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.wk h2{flex:1;min-width:160px}
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+@media (max-width:800px){.week{grid-template-columns:1fr}}
+.day{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px;min-height:130px}
+.day h3{margin:0 0 6px;font-size:.95rem}
+.day.today{border-color:var(--pend);border-width:2px}
+.day .card{padding:6px 8px;margin-bottom:6px;font-size:.88rem}
+textarea{width:100%;min-height:200px;font:13px/1.4 ui-monospace,monospace}
+h1 img{height:56px;width:auto}
+</style>
+</head>
+<body>
+<main>
+<h1><img src="icons/logo-header.png" alt="Royal Window Cleaning logo" height="56">Royal Window Scheduler</h1>
+<nav role="tablist">
+<button role="tab" data-tab="board" aria-selected="true">Board</button>
+<button role="tab" data-tab="cal" aria-selected="false">Calendar</button>
+<button role="tab" data-tab="rec" aria-selected="false">Recurring</button>
+<button role="tab" data-tab="cust" aria-selected="false">Customers</button>
+<button role="tab" data-tab="bak" aria-selected="false">Backup</button>
+</nav>
+
+<section class="tab on" id="t-board">
+<form id="f">
+<input name="name" placeholder="Customer name" required>
+<input name="phone" type="tel" placeholder="Phone">
+<input name="addr" placeholder="Address" required>
+<select name="service"></select>
+<input name="date" type="datetime-local" required>
+<input name="price" type="number" min="0" step="1" placeholder="Price ($)" required>
+<button class="btn">Add job</button>
+</form>
+<div class="board">
+<section class="col" data-status="pending"><header><h2>Pending</h2><span class="stat" id="sp"></span></header><div class="list" data-status="pending"></div></section>
+<section class="col" data-status="done"><header><h2>Completed</h2><span class="stat" id="sd"></span></header><div class="list" data-status="done"></div></section>
+</div>
+</section>
+
+<section class="tab" id="t-cal">
+<div class="wk"><button class="ghost" id="prev">Previous week</button><h2 id="wlabel"></h2><button class="ghost" id="today">This week</button><button class="ghost" id="next">Next week</button></div>
+<div class="week" id="week"></div>
+</section>
+
+<section class="tab" id="t-rec">
+<form id="rf">
+<input name="name" placeholder="Customer name" required>
+<input name="phone" type="tel" placeholder="Phone">
+<input name="addr" placeholder="Address" required>
+<select name="service"></select>
+<input name="price" type="number" min="0" step="1" placeholder="Price ($)" required>
+<select name="rule"><option value="d7">Every week</option><option value="d14">Every 2 weeks</option><option value="m1">Every month</option><option value="m3">Every 3 months</option><option value="m6">Every 6 months</option><option value="m12">Every year</option></select>
+<input name="date" type="datetime-local" required aria-label="First visit">
+<button class="btn">Save recurring client</button>
+</form>
+<div class="cards" id="rlist"></div>
+</section>
+
+<section class="tab" id="t-cust"><div class="cards" id="clist"></div></section>
+
+<section class="tab" id="t-bak">
+<p class="meta">Jobs are saved in this browser only. To move them to another phone or computer, copy the backup text below, then paste it into the Backup tab on the other device and choose Import.</p>
+<textarea id="bx" aria-label="Backup data"></textarea>
+<div class="acts" style="margin-top:8px"><button class="btn" id="cp">Copy backup</button><button class="btn" id="im">Import backup</button></div>
+<p class="meta" id="bmsg" role="status"></p>
+</section>
+</main>
+<script>
+const KEY="squeegee-jobs-v1",RK="royal-recurring-v1";
+const SERVICES=["Exterior windows","Interior windows","Interior + exterior","Screens and tracks","Pressure washing"];
+function ld(k){try{const r=localStorage.getItem(k);if(r)return JSON.parse(r)}catch(e){}return null}
+function sv(){try{localStorage.setItem(KEY,JSON.stringify(jobs));localStorage.setItem(RK,JSON.stringify(recur))}catch(e){}}
+const pad=n=>String(n).padStart(2,"0");
+const iso=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+pad(d.getHours())+":"+pad(d.getMinutes());
+function seed(){const d=n=>{const x=new Date();x.setDate(x.getDate()+n);x.setHours(9+(n>0?n:0),0,0,0);return iso(x)};
+return [{id:1,name:"Maple Dental",phone:"",addr:"410 Elm St",service:"Interior + exterior",date:d(0),price:240,status:"pending"},
+{id:2,name:"R. Alvarez",phone:"",addr:"88 Oak Lane",service:"Exterior windows",date:d(1),price:130,status:"pending"},
+{id:3,name:"Corner Bakery",phone:"",addr:"12 Main St",service:"Screens and tracks",date:d(-1),price:90,status:"done"}]}
+let jobs=ld(KEY)||seed(),recur=ld(RK)||[];
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt=d=>{const x=new Date(d);return isNaN(x)?"":x.toLocaleString([], {weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})};
+const call=p=>p?'<a class="ghost" href="tel:'+esc(String(p).replace(/[^\d+]/g,""))+'">Call '+esc(p)+'</a>':"";
+document.querySelectorAll("select[name=service]").forEach(s=>s.innerHTML=SERVICES.map(x=>"<option>"+x+"</option>").join(""));
+
+function renderBoard(){
+ for(const st of ["pending","done"]){
+  const list=document.querySelector('.list[data-status='+st+']');
+  const items=jobs.filter(j=>j.status===st);
+  list.innerHTML=items.length?items.map(j=>'<div class="card" draggable="true" data-id="'+j.id+'"><b>'+esc(j.name)+'</b><div class="meta">'+esc(j.addr)+'</div><div class="meta">'+esc(j.service)+' · '+fmt(j.date)+'</div><div class="row"><span class="price">$'+esc(j.price)+'</span><span class="acts">'+call(j.phone)+'<button class="ghost" data-act="move">'+(st==="pending"?"Mark done":"Reopen")+'</button><button class="ghost" data-act="del">Delete</button></span></div></div>').join(""):'<div class="empty">'+(st==="pending"?"No pending jobs. Add one above.":"Nothing completed yet. Drag a job here.")+'</div>';
+  const sum=items.reduce((a,j)=>a+Number(j.price||0),0);
+  document.getElementById(st==="pending"?"sp":"sd").textContent=items.length+" jobs · $"+sum;
+ }
+}
+let wk=startOfWeek(new Date());
+function startOfWeek(d){const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-x.getDay());return x}
+function renderCal(){
+ const days=[...Array(7)].map((_,i)=>{const d=new Date(wk);d.setDate(d.getDate()+i);return d});
+ document.getElementById("wlabel").textContent=days[0].toLocaleDateString([], {month:"short",day:"numeric"})+" to "+days[6].toLocaleDateString([], {month:"short",day:"numeric",year:"numeric"});
+ const t=iso(new Date()).slice(0,10);
+ document.getElementById("week").innerHTML=days.map(d=>{const k=iso(d).slice(0,10);
+  const js=jobs.filter(j=>String(j.date).slice(0,10)===k).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  return '<div class="day'+(k===t?" today":"")+'"><h3>'+d.toLocaleDateString([], {weekday:"short",month:"short",day:"numeric"})+'</h3>'+(js.length?js.map(j=>'<div class="card" style="--c:var(--'+(j.status==="done"?"done":"pend")+')"><b>'+esc(new Date(j.date).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}))+" "+esc(j.name)+'</b><div class="meta">'+esc(j.addr)+(j.status==="done"?" · done":"")+'</div></div>').join(""):'<div class="meta">No jobs</div>')+'</div>'}).join("");
+}
+const RULES={d7:"Every week",d14:"Every 2 weeks",m1:"Every month",m3:"Every 3 months",m6:"Every 6 months",m12:"Every year"};
+function advance(s,rule){const d=new Date(s);const n=Number(rule.slice(1));if(rule[0]==="d")d.setDate(d.getDate()+n);else d.setMonth(d.getMonth()+n);return iso(d)}
+function renderRec(){
+ document.getElementById("rlist").innerHTML=recur.length?recur.map(r=>'<div class="card" data-rid="'+r.id+'"><b>'+esc(r.name)+'</b><div class="meta">'+esc(r.addr)+'</div><div class="meta">'+esc(r.service)+' · $'+esc(r.price)+' · '+RULES[r.rule]+'</div><div class="meta">Next visit: '+fmt(r.date)+'</div><div class="row"><span class="acts">'+call(r.phone)+'</span><span class="acts"><button class="ghost" data-ra="make">Schedule next visit</button><button class="ghost" data-ra="del">Delete</button></span></div></div>').join(""):'<div class="empty">No recurring clients yet. Add one above.</div>';
+}
+function renderCust(){
+ const m={};jobs.forEach(j=>{const k=j.name.trim().toLowerCase();const c=m[k]||(m[k]={name:j.name,phone:"",addr:j.addr,n:0,paid:0});if(j.phone)c.phone=j.phone;c.addr=j.addr;c.n++;if(j.status==="done")c.paid+=Number(j.price||0)});
+ const cs=Object.values(m).sort((a,b)=>a.name.localeCompare(b.name));
+ document.getElementById("clist").innerHTML=cs.length?cs.map(c=>'<div class="card"><b>'+esc(c.name)+'</b><div class="meta">'+esc(c.addr)+'</div><div class="meta">'+c.n+' jobs · $'+c.paid+' completed</div><div class="row">'+(call(c.phone)||'<span class="meta">No phone saved</span>')+'</div></div>').join(""):'<div class="empty">Customers appear here after you add jobs.</div>';
+}
+function renderBak(){document.getElementById("bx").value=JSON.stringify({jobs,recur})}
+function render(){renderBoard();renderCal();renderRec();renderCust();renderBak()}
+
+document.querySelector("nav").addEventListener("click",e=>{const b=e.target.closest("button[data-tab]");if(!b)return;
+ document.querySelectorAll("nav button").forEach(x=>x.setAttribute("aria-selected",x===b));
+ document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.id==="t-"+b.dataset.tab));});
+document.getElementById("f").addEventListener("submit",e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target));
+ jobs.push({id:Date.now(),name:v.name,phone:v.phone,addr:v.addr,service:v.service,date:v.date,price:v.price,status:"pending"});sv();render();e.target.reset()});
+document.getElementById("rf").addEventListener("submit",e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target));
+ recur.push({id:Date.now(),...v});sv();render();e.target.reset()});
+document.addEventListener("click",e=>{
+ let b=e.target.closest("button[data-act]");
+ if(b){const id=Number(b.closest(".card").dataset.id);const j=jobs.find(x=>x.id===id);
+  if(b.dataset.act==="del")jobs=jobs.filter(x=>x.id!==id);else j.status=j.status==="pending"?"done":"pending";sv();render();return}
+ b=e.target.closest("button[data-ra]");
+ if(b){const id=Number(b.closest(".card").dataset.rid);const r=recur.find(x=>x.id===id);
+  if(b.dataset.ra==="del")recur=recur.filter(x=>x.id!==id);
+  else{jobs.push({id:Date.now(),name:r.name,phone:r.phone,addr:r.addr,service:r.service,date:r.date,price:r.price,status:"pending"});r.date=advance(r.date,r.rule)}
+  sv();render()}
+});
+document.getElementById("prev").onclick=()=>{wk.setDate(wk.getDate()-7);renderCal()};
+document.getElementById("next").onclick=()=>{wk.setDate(wk.getDate()+7);renderCal()};
+document.getElementById("today").onclick=()=>{wk=startOfWeek(new Date());renderCal()};
+document.getElementById("cp").onclick=async()=>{const ta=document.getElementById("bx"),m=document.getElementById("bmsg");
+ try{await navigator.clipboard.writeText(ta.value);m.textContent="Backup copied."}catch(e){ta.select();m.textContent="Select and copy the text above."}};
+document.getElementById("im").onclick=()=>{const m=document.getElementById("bmsg");
+ try{const d=JSON.parse(document.getElementById("bx").value);if(!Array.isArray(d.jobs))throw 0;jobs=d.jobs;recur=Array.isArray(d.recur)?d.recur:[];sv();render();m.textContent="Imported "+jobs.length+" jobs."}
+ catch(e){m.textContent="That text isn’t a valid backup. Paste the full backup and try again."}};
+let dragId=null;
+document.addEventListener("dragstart",e=>{const c=e.target.closest&&e.target.closest(".list .card");if(!c)return;dragId=Number(c.dataset.id);e.dataTransfer.effectAllowed="move";try{e.dataTransfer.setData("text/plain",String(dragId))}catch(x){}setTimeout(()=>c.classList.add("dragging"),0)});
+document.addEventListener("dragend",()=>{dragId=null;document.querySelectorAll(".over,.dragging").forEach(n=>n.classList.remove("over","dragging"))});
+document.querySelectorAll(".list").forEach(list=>{
+ list.addEventListener("dragover",e=>{if(dragId===null)return;e.preventDefault();list.classList.add("over")});
+ list.addEventListener("dragleave",e=>{if(!list.contains(e.relatedTarget))list.classList.remove("over")});
+ list.addEventListener("drop",e=>{e.preventDefault();if(dragId===null)return;const j=jobs.find(x=>x.id===dragId);if(!j)return;
+  const after=[...list.querySelectorAll(".card:not(.dragging)")].find(c=>{const r=c.getBoundingClientRect();return e.clientY<r.top+r.height/2});
+  jobs=jobs.filter(x=>x.id!==dragId);j.status=list.dataset.status;
+  jobs.splice(after?jobs.findIndex(x=>x.id===Number(after.dataset.id)):jobs.length,0,j);sv();render()});
+});
+render();
+if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
+</script>
+</body>
+</html>
